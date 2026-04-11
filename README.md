@@ -291,25 +291,11 @@ unplugged-line-follower/
 | Tool | Purpose |
 |------|---------|
 | KiCad 7.x / 8.x | Schematic capture and PCB layout |
-| LTSpice XVII | Circuit simulation (Brownie Points) |
-| Fusion 360 / FreeCAD | CAD enclosure and assembly modelling |
 | Git + GitHub | Version control and submission |
 
 ---
 
-## How to Build
 
-### Opening the PCB Project
-
-1. Install [KiCad 9+](https://www.kicad.org/download/)
-2. Clone this repository: `git clone https://github.com/<your-team>/<repo-name>.git`
-3. Open `pcb/line_follower.kicad_pro` in KiCad
-
-### Viewing the Simulation
-
-1. Install [LTSpice](https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html)
-2. Open `simulation/polarity_protection.asc`
-3. Run `.tran` simulation and probe output nodes
 
 ### Generating Gerbers
 
