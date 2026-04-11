@@ -1,8 +1,5 @@
 # 🚗 Line Follower Car — UNPLUGGED 24-Hour Hardware Hackathon
 
-> **Event:** UNPLUGGED — A 24-Hour Hardware Hackathon
-> **Organised by:** DJSCE × IETE-ISF × DJS MicroMinds VLSI Club
-> **Round:** Round II — PCB Design + CAD Integration
 
 ---
 
