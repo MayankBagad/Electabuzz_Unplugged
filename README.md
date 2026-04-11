@@ -68,11 +68,9 @@ LM2596 Buck Converter (→ 5V)
 | 7 | Solar Panel | 6V / 1W | 1 | Battery charging via TP4056 |
 | 8 | Battery Holder | 18650 Li-ion cell holder | 1 | Primary energy storage |
 | 9 | Charger IC | TP4056 (with protection) | 1 | Li-ion charge controller |
-| 10 | Buck Converter | LM2596 (adjustable) | 1 | Step-down to 5V for logic |
+| 10 | Buck Module | LM2596 (adjustable) | 1 | Step-down to 5V for logic |
 | 11 | OLED Display | 0.96" SSD1306 I²C | 1 | Status display (speed, GPS, sensor state) |
-| — | Schottky Diode | 1N5819 | 1 | Solar reverse-current protection |
-| — | Pull-up Resistors | 4.7 kΩ | 2 | I²C bus (SDA + SCL) |
-| — | Pull-up Resistor | 10 kΩ | 1 | TB6612 STBY pin |
+
 
 ---
 
