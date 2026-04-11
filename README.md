@@ -301,7 +301,7 @@ unplugged-line-follower/
 
 ### Opening the PCB Project
 
-1. Install [KiCad 7+](https://www.kicad.org/download/)
+1. Install [KiCad 9+](https://www.kicad.org/download/)
 2. Clone this repository: `git clone https://github.com/<your-team>/<repo-name>.git`
 3. Open `pcb/line_follower.kicad_pro` in KiCad
 
@@ -322,9 +322,6 @@ In KiCad PCB Editor: `File → Fabrication Outputs → Gerbers`
 | Name | Role |
 |------|------|
 | — | PCB Design (KiCad) |
-| — | CAD Modelling |
-| — | LTSpice Simulation |
-| — | Documentation & GitHub |
 
 ---
 
