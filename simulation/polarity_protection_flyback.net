@@ -1,0 +1,132 @@
+* Flyback Isolated DC-DC | Vin: +/-12V to +/-50V | Vout: +12V Regulated (Isolated)
+* UNPLUGGED Hardware Hackathon - Team Electrabuzz
+* Brownie Points Challenge: Polarity-Independent Isolated Power Interface
+
+.param Vin_value=24
+.param Rload_value=48
+.options gmin=1e-9 reltol=0.003 cshunt=1e-15
+
+* ==============================================================================
+* STAGE 1: INPUT SOURCE + SURGE PROTECTION
+* ==============================================================================
+* DC input voltage source (sweep +/-12V, +/-24V, +/-36V, +/-50V)
+V1 inp 0 {Vin_value}
+
+* Fuse resistance (models PCB trace / wire resistance)
+R_fuse inp in_fused 0.05
+
+* Bidirectional TVS surge protection (clamps at 55V peak)
+D_tvs1 in_fused tvs_mid D_TVS
+D_tvs2 0 tvs_mid D_TVS
+.model D_TVS D(BV=55 IBV=5m Rs=0.5)
+R_tvs_bleed tvs_mid 0 10Meg
+
+* Input EMI filter capacitor
+C_in in_fused 0 100u ic=0
+
+* ==============================================================================
+* STAGE 2: FULL BRIDGE RECTIFIER
+* ==============================================================================
+* Schottky bridge ensures positive rectified output for ANY input polarity
+* Vin > 0: D1+D4 conduct | Vin < 0: D2+D3 conduct
+* Result: V(rect_p) - V(rect_n) = |Vin| - 0.6V (two Schottky drops)
+D1 in_fused rect_p DSCHOTTKY
+D2 0 rect_p DSCHOTTKY
+D3 rect_n in_fused DSCHOTTKY
+D4 rect_n 0 DSCHOTTKY
+.model DSCHOTTKY D(Is=1e-5 Rs=0.03 N=1.05 BV=60 Vj=0.3 Cjo=100p)
+
+* Rectifier ground reference (avoids floating node warning in SPICE)
+R_rect_ref rect_n 0 10Meg
+C_rect rect_p rect_n 47u ic={abs(Vin_value)}
+
+* ==============================================================================
+* STAGE 3: POLARITY DETECTION (0V = Normal / 5V = Reversed)
+* ==============================================================================
+* Resistive divider senses ORIGINAL input (before bridge rectifier)
+* Normal polarity (Vin > 0): v_sense > 2.5V ref --> pol_out = 0V
+* Reversed polarity (Vin < 0): v_sense < 2.5V ref --> pol_out = 5V
+R1_sense in_fused v_sense 90k
+R2_sense v_sense 0 10k
+V_5v vcc_5v rect_n 5
+V_ref v_ref rect_n 2.5
+
+* Behavioral comparator output + conditioning
+B_comp pol_raw rect_n V=if(V(v_sense)<V(v_ref,rect_n), 5, 0)
+R_hyst pol_raw v_sense 1Meg
+R_pol_cond pol_raw pol_out 1k
+D_clamp pol_out rect_n D_ZENER5V1
+.model D_ZENER5V1 D(BV=5.1 IBV=1m)
+R_pd pol_out rect_n 100k
+
+* ==============================================================================
+* STAGE 4: FLYBACK DC-DC (Galvanic Isolation)
+* ==============================================================================
+* --- TRANSFORMER (Coupled Inductors) ---
+* L_pri: Primary winding (rect_p to drain)
+* L_sec: Secondary winding (iso_gnd to sec) - dot at iso_gnd
+* Turns ratio: N = sqrt(L_sec/L_pri) = sqrt(144/100) = 1.2
+* Step-up ratio ensures Vout_raw > 12V at minimum 12V input
+L_pri rect_p drain 100u
+L_sec iso_gnd sec 144u
+K1 L_pri L_sec 0.95
+
+* --- Primary Side MOSFET Switch ---
+M1 drain gate rect_n rect_n NMOSFET
+.model NMOSFET NMOS(VTO=2 KP=100 RD=0.01 RS=0.01)
+V_pwm gate rect_n PULSE(0 12 0 20n 20n 4.5u 10u)
+
+* --- Snubber & Secondary Rectification ---
+* RCD clamp snubber absorbs leakage inductance voltage spike
+D_snub drain snub_node DFAST
+R_snub snub_node rect_p 470
+C_snub snub_node rect_p 2.2n
+.model DFAST D(Is=1e-14 Rs=0.5 N=1 BV=200 Cjo=5p)
+
+* Secondary Schottky rectifier + output filter capacitors
+* During MOSFET OFF: energy from L_pri transfers to L_sec
+* Voltage on sec node goes positive, D_sec conducts, charges C_out
+D_sec sec vout_raw DSCHOTTKY
+C_out_main vout_raw iso_gnd 220u ic=14
+C_out_hf vout_raw iso_gnd 100n
+
+* ==============================================================================
+* STAGE 5: LINEAR POST-REGULATOR (Precise 12V Output)
+* ==============================================================================
+* Zener reference sets base voltage at 12.7V (= 12V + Vbe)
+* R_zen limits Zener current from unregulated vout_raw
+R_zen vout_raw vbase 100
+D_zener iso_gnd vbase DZENER12
+.model DZENER12 D(IS=1e-14 BV=12.7 IBV=5m NBV=1 RS=1)
+
+* NPN emitter follower provides low-impedance regulated 12V output
+* Vout = Vbase - Vbe = 12.7 - 0.7 = 12.0V
+Q1 vout_raw vbase vout QNPN
+.model QNPN NPN(BF=200 IS=1e-14 VAF=100 RB=10 RC=1 RE=0.1)
+
+* Output filter on isolated ground domain
+C_filt vout iso_gnd 10u ic=12
+
+* ==============================================================================
+* STAGE 6: OUTPUT + TELEMETRY LOAD
+* ==============================================================================
+* Load resistor on ISOLATED output domain
+R_load vout iso_gnd {Rload_value}
+
+* Polarity telemetry signal load
+R_led pol_out rect_n 10k
+
+* ==============================================================================
+* SIMULATION COMMANDS & TRANSIENT MEASUREMENTS
+* ==============================================================================
+.tran 0 20m 0 1u uic
+
+.meas TRAN V_input AVG V(inp) FROM 10M TO 20M
+.meas TRAN V_rectified AVG V(rect_p,rect_n) FROM 10M TO 20M
+.meas TRAN V_output AVG V(vout,iso_gnd) FROM 10M TO 20M
+.meas TRAN V_polarity AVG V(pol_out,rect_n) FROM 10M TO 20M
+.meas TRAN I_load AVG I(R_load) FROM 10M TO 20M
+.meas TRAN V_ripple PP V(vout,iso_gnd) FROM 15M TO 20M
+
+.backanno
+.end

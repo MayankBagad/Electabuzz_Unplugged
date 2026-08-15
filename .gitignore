@@ -1,0 +1,90 @@
+# ==============================================================================
+# KiCad EDA ignore rules (KiCad 7, 8, 9)
+# ==============================================================================
+# Lock files
+*.lck
+~*.lck
+.~lock.*
+
+# Project local settings (window positions, active layers, etc.)
+*.kicad_prl
+
+# Auto-save and backup files
+*-bak
+*-bak.kicad_sch
+*-bak.kicad_pcb
+_autosave-*
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.sch-bak
+*.pcb-bak
+*.bak
+*.tmp
+*.bck
+
+# Netlists and intermediate fabrication files (unless intentionally checked in)
+*.net
+!simulation/*.net
+*.drc
+*.erc
+*.rules
+*.kicad_dru
+
+# 3D cache
+*.3dshapes-cache/
+
+# ==============================================================================
+# Simulation / LTSpice ignore rules
+# ==============================================================================
+# Simulation results & raw data (can be several GB)
+*.raw
+*.op.raw
+*.fft
+*.log
+*.log.txt
+
+# ==============================================================================
+# CAD / Mechanical temporary files
+# ==============================================================================
+*.step.bak
+*.stp.bak
+*.iges.bak
+*.igs.bak
+*.dwg.bak
+*.dxf.bak
+
+# ==============================================================================
+# Microsoft Office / Document lock files
+# ==============================================================================
+~$*
+.~lock.*.docx#
+.~lock.*.xlsx#
+.~lock.*.pptx#
+
+# ==============================================================================
+# Operating System & Editor artifacts
+# ==============================================================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
