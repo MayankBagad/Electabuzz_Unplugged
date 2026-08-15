@@ -1,309 +1,223 @@
-# 🚗 Line Follower Car — UNPLUGGED 24-Hour Hardware Hackathon
+# 🚗 Electabuzz: Line Follower Robot Hardware Platform
 
+> **A custom hardware design, PCB layout, sensor interface, and power system package for a line-following mobile robot platform.**
 
----
+Developed by **Team Electrabuzz** for *UNPLUGGED — A 24-Hour Hardware Hackathon* organized by DJSCE × IETE-ISF × DJS MicroMinds VLSI Club.
 
-## 📌 Table of Contents
-
-- [Problem Statement](#problem-statement)
-- [System Overview](#system-overview)
-- [Component List (BOM)](#component-list-bom)
-- [Circuit & Pin Connections](#circuit--pin-connections)
-- [PCB Design](#pcb-design)
-- [CAD Model](#cad-model)
-- [Brownie Points — LTSpice Simulation](#brownie-points--ltspice-simulation)
-- [Repository Structure](#repository-structure)
-- [Tools & Software Used](#tools--software-used)
-- [How to Build](#how-to-build)
-- [Team](#team)
+[![KiCad Version](https://img.shields.io/badge/KiCad-v9.0-blue?style=flat-square&logo=kicad)](https://kicad.org/)
+[![Simulation](https://img.shields.io/badge/Simulation-LTSpice-red?style=flat-square)](https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html)
+[![MCU](https://img.shields.io/badge/MCU-ESP32%20WROOM--32-green?style=flat-square&logo=espressif)](https://www.espressif.com/)
 
 ---
 
-## Problem Statement
+## 📸 Project Overview
 
-Design and develop a high-efficiency schematic and PCB layout using **KiCad** within the given time frame to serve as the **central control system for a line follower car**.
-
-The PCB must:
-- Fit within the exact mechanical boundaries of the provided chassis reference
-- Interface all provided components with proper power distribution and signal integrity
-- Pass Electrical Rule Check (ERC) and Design Rule Check (DRC)
-- Be accompanied by a complete **CAD model** demonstrating structural, accessibility, and thermal considerations
+![3D PCB Render](docs/assets/images/3d-pcb-render.jpeg)
 
 ---
 
-## System Overview
+## ⚡ Key Engineering Deliverables
+
+- **Custom Form-Factor PCB**: 2-layer FR4 PCB designed in KiCad 9.0 to fit mechanical chassis boundaries, with separate ground returns for logic and motor circuits.
+- **Integrated Sensor & Actuator Interface**: Onboard routing for an ESP32 microcontroller, 5-channel IR tracking array, TB6612FNG dual DC motor driver, 0.96" I²C OLED display, NEO-6M GPS, and ESP32-CAM module.
+- **Dual-Domain Power Architecture**: Solar-assisted Li-ion battery charging (TP4056 + 2× 18650 cells) with LM2596 buck regulation for 5V/3.3V logic, alongside an isolated 12V motor supply rail.
+- **Wide-Range Isolated Power Front-End (Simulation)**: LTSpice SPICE simulation of a $\pm 12\text{V}$ to $\pm 50\text{V}$ DC polarity-independent isolated flyback converter with logic-level polarity telemetry.
+- **Design Verification**: Checked with KiCad Electrical Rules Check (ERC) and Design Rules Check (DRC).
+
+---
+
+## 🎯 Problem & Engineering Approach
+
+### The Problem
+Line-follower robots require clean sensor signal routing, reliable motor current delivery, and stable logic power. Connecting high-draw DC motors directly to the same unregulated battery rail as the microcontroller often causes voltage dips, electrical noise, and unwanted MCU resets.
+
+### The Engineering Solution
+**Electabuzz** addresses these requirements at the board level:
+1. **Isolated Power Rails**: Logic circuitry (ESP32, sensors, OLED) is powered via an LM2596 buck regulator from 18650 Li-ion cells, while motors are driven through a dedicated 12V rail on the TB6612FNG driver.
+2. **Consolidated Board Layout**: Integrates power management, compute, telemetry, and motor switching onto a single PCB shaped to match chassis mounting holes.
+3. **Transient-Tolerant Power Simulation**: A supplementary flyback converter stage was modeled to evaluate polarity-independent operation and surge clamping under wide DC input ranges.
+
+---
+
+## 🏗 System Architecture
 
 ```
-Solar Panel
-    │
-    ▼ (1N5819 blocking diode)
-TP4056 Li-ion Charger ◄──── 18650 Battery Cell
-    │
-    ▼
-LM2596 Buck Converter (→ 5V)
-    │
-    ├──► ESP32 WROOM-32 (main MCU)
-    │         │
-    │         ├── I²C  ──────► 0.96" OLED Display (SSD1306)
-    │         ├── UART2 ──────► NEO-6M GPS Module
-    │         ├── GPIO (PWM) ─► TB6612FNG Motor Driver ──► 2× 12V DC Gear Motors
-    │         ├── GPIO (IN) ──► IR Sensor Array (×5)
-    │         └── UART0 ──────► ESP32-CAM (OV2640)
-    │
-    └──► ESP32-CAM (5V direct)
-```
-
----
-
-## Component List (BOM)
-
-| Sr. No. | Component | Model / Spec | Qty | Role |
-|---------|-----------|--------------|-----|------|
-| 1 | Microcontroller | ESP32 WROOM-32 | 1 | Main MCU — WiFi, BT, dual-core 240 MHz |
-| 2 | Camera Module | ESP32-CAM (OV2640) | 1 | 2MP visual feedback / logging |
-| 3 | Motor Driver | TB6612FNG | 1 | Dual H-bridge for 2 DC motors |
-| 4 | DC Gear Motor | 12V DC Gear Motor | 2 | Left & right drive wheels |
-| 5 | GPS Module | NEO-6M | 1 | Position tracking via UART2 |
-| 6 | IR Sensor Module | Generic reflective IR | 5 | 5-channel line detection array |
-| 7 | Solar Panel | 6V / 1W | 1 | Battery charging via TP4056 |
-| 8 | Battery Holder | 18650 Li-ion cell holder | 1 | Primary energy storage |
-| 9 | Charger IC | TP4056 (with protection) | 1 | Li-ion charge controller |
-| 10 | Buck Module | LM2596 (adjustable) | 1 | Step-down to 5V for logic |
-| 11 | OLED Display | 0.96" SSD1306 I²C | 1 | Status display (speed, GPS, sensor state) |
-
-
----
-
-## Circuit & Pin Connections
-
-### ESP32 → TB6612FNG Motor Driver
-
-| ESP32 Pin | TB6612 Pin | Signal Type | Notes |
-|-----------|------------|-------------|-------|
-| GPIO25 | AIN1 | Digital | Motor A direction 1 |
-| GPIO26 | AIN2 | Digital | Motor A direction 2 |
-| GPIO27 | PWMA | PWM (LEDC) | Motor A speed |
-| GPIO14 | BIN1 | Digital | Motor B direction 1 |
-| GPIO12 | BIN2 | Digital | Motor B direction 2 |
-| GPIO13 | PWMB | PWM (LEDC) | Motor B speed |
-| GPIO32 | STBY | Digital | HIGH = active; 10 kΩ pull-up |
-| 3.3V | VCC | Power | Logic supply |
-| GND | GND | Power | Common ground |
-| 12V bus | VM | Power | Motor supply (max 15V) |
-
-**TB6612 Outputs → Motors**
-
-| TB6612 Pin | Motor Terminal |
-|------------|----------------|
-| AO1 | Left motor (+) |
-| AO2 | Left motor (−) |
-| BO1 | Right motor (+) |
-| BO2 | Right motor (−) |
-
----
-
-### IR Sensor Array → ESP32
-
-| IR Sensor | ESP32 Pin | Notes |
-|-----------|-----------|-------|
-| Sensor 1 OUT | GPIO34 (input only) | Leftmost — no internal pull-up |
-| Sensor 2 OUT | GPIO35 (input only) | Left-centre |
-| Sensor 3 OUT | GPIO36 (VP) | Centre |
-| Sensor 4 OUT | GPIO39 (VN) | Right-centre |
-| Sensor 5 OUT | GPIO33 | Rightmost |
-| VCC (all) | 3.3V rail | 3.3V supply |
-| GND (all) | GND | Common ground |
-
----
-
-### NEO-6M GPS → ESP32 (UART2)
-
-| NEO-6M Pin | ESP32 Pin | Notes |
-|------------|-----------|-------|
-| TX | GPIO16 (RX2) | GPS → ESP32 (9600 baud default) |
-| RX | GPIO17 (TX2) | ESP32 → GPS (config, optional) |
-| VCC | 3.3V | 45 mA typical |
-| GND | GND | Common ground |
-
----
-
-### 0.96″ OLED SSD1306 → ESP32 (I²C)
-
-| OLED Pin | ESP32 Pin | Notes |
-|----------|-----------|-------|
-| SCL | GPIO22 | 4.7 kΩ pull-up to 3.3V |
-| SDA | GPIO21 | 4.7 kΩ pull-up to 3.3V |
-| VCC | 3.3V | I²C address: 0x3C |
-| GND | GND | Common ground |
-
----
-
-### Power Chain
-
-```
-Solar Panel (+) ──[1N5819]──► TP4056 IN+
-Solar Panel (−) ────────────► TP4056 IN−
-18650 (+) ──────────────────► TP4056 BAT+
-18650 (−) ──────────────────► TP4056 BAT−
-TP4056 OUT+ (~4.2V) ────────► LM2596 IN+
-LM2596 OUT+ (5V) ───────────► ESP32 VIN
-LM2596 OUT+ (5V) ───────────► ESP32-CAM 5V
-ESP32 3.3V (out) ───────────► IR Array VCC, OLED VCC, NEO-6M VCC, TB6612 VCC
-12V supply ─────────────────► TB6612 VM  (separate motor rail)
-```
-
-> ⚠️ **Important:** The 18650 single cell outputs ~4.2V at full charge — insufficient for 12V motors. A **separate 12V supply or 3S Li-ion pack** is required for the motor rail. The 18650 + TP4056 powers logic only.
-
----
-
-### ESP32-CAM
-
-| ESP32-CAM Pin | Connection | Notes |
-|---------------|------------|-------|
-| 5V | LM2596 5V output | Up to 310 mA peak |
-| GND | Common GND | — |
-| U0TXD (GPIO1) | ESP32 GPIO3 (RX0) | Optional UART logging |
-| U0RXD (GPIO3) | ESP32 GPIO1 (TX0) | Optional control |
-| GPIO0 | GND (to flash) | Pull LOW to program; float for run |
-| IO4 | Optional GPIO | Onboard flash LED control |
-
----
-
-## PCB Design
-
-All KiCad project files are in the `/pcb/` directory.
-
-### Deliverables
-
-- [ ] Complete PCB layout screenshot
-- [ ] Front copper layer (F.Cu)
-- [ ] Back copper layer (B.Cu)
-- [ ] 3D rendered view of PCB
-- [ ] Schematic diagram
-- [ ] ERC (Electrical Rule Check) — 0 errors
-- [ ] DRC (Design Rule Check) — 0 errors
-
-### Design Constraints
-
-- PCB dimensions match chassis reference (functionally equivalent in size and mounting)
-- Compact layout with clean signal routing
-- Separate ground pours for logic and motor sections (star ground at single tie point)
-- Decoupling capacitors (100 nF) on VCC pins of ESP32, TB6612, and sensors
-- Thermal consideration: TB6612 pad exposed for heat dissipation
-
----
-
-## CAD Model
-
-CAD files are in the `/cad/` directory.
-
-### Deliverables
-
-- [ ] Rendered images of enclosure and full assembly
-- [ ] PCB integrated within CAD model
-- [ ] Structural considerations — mounting holes aligned to chassis
-- [ ] Accessibility considerations — USB/programming port accessible without disassembly
-- [ ] Thermal considerations — motor driver ventilation slots, battery compartment venting
-
----
-
-## Brownie Points — LTSpice Simulation
-
-**Task:** Design a polarity-independent input interface using LTSpice capable of:
-- Accepting DC input: **12V to 50V with unknown polarity**
-- Generating a regulated **+12V DC output**
-- Producing a **polarity-indicating digital signal** (0V = normal, 5V = reversed)
-- Electrical isolation between input and output stages
-- Safe operation under both normal and reverse polarity
-
-Simulation files are in the `/simulation/` directory.
-
-### Deliverables
-
-- [ ] LTSpice schematic screenshots
-- [ ] Simulation waveform screenshots (normal polarity)
-- [ ] Simulation waveform screenshots (reversed polarity)
-- [ ] Output voltage verification (stable +12V)
-- [ ] Polarity indicator signal verification (0V / 5V)
-
----
-
-## Repository Structure
-
-```
-unplugged-line-follower/
-│
-├── README.md
-│
-├── pcb/
-│   ├── line_follower.kicad_pro
-│   ├── line_follower.kicad_sch       # Schematic
-│   ├── line_follower.kicad_pcb       # PCB layout
-│   ├── fp-lib-table                  # Footprint libraries
-│   ├── sym-lib-table                 # Symbol libraries
-│   ├── gerbers/                      # Fabrication files
-│   │   ├── line_follower-F_Cu.gbr
-│   │   ├── line_follower-B_Cu.gbr
-│   │   ├── line_follower-Edge_Cuts.gbr
-│   │   └── ...
-│   └── screenshots/
-│       ├── schematic.png
-│       ├── pcb_layout.png
-│       ├── front_copper.png
-│       ├── back_copper.png
-│       └── 3d_render.png
-│
-├── cad/
-│   ├── assembly.step                 # Full assembly STEP file
-│   ├── enclosure.f3d                 # Fusion 360 / FreeCAD source
-│   └── renders/
-│       ├── top_view.png
-│       ├── side_view.png
-│       └── exploded_view.png
-│
-├── simulation/
-│   ├── polarity_protection.asc       # LTSpice schematic
-│   ├── polarity_protection.net       # Netlist
-│   └── screenshots/
-│       ├── schematic.png
-│       ├── normal_polarity_waveform.png
-│       └── reverse_polarity_waveform.png
-│
-├── bom/
-│   └── BOM.csv                       # Bill of Materials
-│
-├── firmware/                         # (optional) Reference code
-│   └── main.ino
-│
-└── docs/
-    └── chassis_reference.pdf
+                              ┌───────────────────┐
+                              │  6V Solar Panel   │
+                              └─────────┬─────────┘
+                                        │ (1N5819 Schottky Diode)
+                                        ▼
+ ┌──────────────────────┐     ┌───────────────────┐
+ │ 2× 18650 Li-ion      │◄───►│  TP4056 Charger   │
+ │ Battery (Parallel)   │     │ (Protection IC)   │
+ └──────────────────────┘     └─────────┬─────────┘
+                                        │ ~3.7V - 4.2V VBAT
+                                        ▼
+                              ┌───────────────────┐
+                              │ LM2596 Buck Conv. │──► 5.0V Logic Rail (ESP32 VIN, CAM 5V)
+                              └─────────┬─────────┘
+                                        │
+           ┌────────────────────────────┴────────────────────────────┐
+           │                                                         │
+           ▼                                                         ▼
+ ┌───────────────────┐                                     ┌───────────────────┐
+ │ ESP32-DEVKIT-V1   │◄────────────── UART0 ──────────────►│ ESP32-CAM (OV2640)│
+ │ (Main Controller) │                                     └───────────────────┘
+ └───┬───┬───┬───┬───┘
+     │   │   │   │
+     │   │   │   └─────────── I²C (GPIO 21/22) ───────────► 0.96" SSD1306 OLED (0x3C)
+     │   │   └─────────────── UART2 (GPIO 16/17) ─────────► NEO-6M GPS Module
+     │   └─────────────────── GPIO Inputs ────────────────► 5× IR Sensor Array
+     │
+     └─────────────────────── PWM / Direction ────────────► TB6612FNG Motor Driver
+                                                                     │
+                    (Dedicated 12V Motor Rail) ──────────────────────┼──► 2× 12V DC Motors
 ```
 
 ---
 
-## Tools & Software Used
+## 🔌 Hardware Interfaces & Pin Mapping
 
-| Tool | Purpose |
-|------|---------|
-| KiCad 7.x / 8.x | Schematic capture and PCB layout |
-| Git + GitHub | Version control and submission |
+| ESP32 Pin | Connected Device | Pin / Function | Signal Type | Description |
+|:---:|:---:|:---:|:---:|:---|
+| **GPIO 25** | TB6612FNG | `AIN1` | Digital Out | Motor A Direction 1 |
+| **GPIO 26** | TB6612FNG | `AIN2` | Digital Out | Motor A Direction 2 |
+| **GPIO 27** | TB6612FNG | `PWMA` | PWM Out | Motor A Speed Control |
+| **GPIO 14** | TB6612FNG | `BIN1` | Digital Out | Motor B Direction 1 |
+| **GPIO 12** | TB6612FNG | `BIN2` | Digital Out | Motor B Direction 2 |
+| **GPIO 13** | TB6612FNG | `PWMB` | PWM Out | Motor B Speed Control |
+| **GPIO 32** | TB6612FNG | `STBY` | Digital Out | Driver Enable / Standby ($10\text{ k}\Omega$ pull-up) |
+| **GPIO 21** | SSD1306 OLED | `SDA` | I²C Data | Display I²C Data line ($4.7\text{ k}\Omega$ pull-up) |
+| **GPIO 22** | SSD1306 OLED | `SCL` | I²C Clock | Display I²C Clock line ($4.7\text{ k}\Omega$ pull-up) |
+| **GPIO 16** | NEO-6M GPS | `TX` | UART RX2 | Serial GPS telemetry input |
+| **GPIO 17** | NEO-6M GPS | `RX` | UART TX2 | Serial configuration output |
+| **GPIO 34** | IR Sensor 1 | `OUT` | Digital In | Leftmost line sensor |
+| **GPIO 35** | IR Sensor 2 | `OUT` | Digital In | Mid-left line sensor |
+| **GPIO 36** | IR Sensor 3 | `OUT` | Digital In | Center line sensor |
+| **GPIO 39** | IR Sensor 4 | `OUT` | Digital In | Mid-right line sensor |
+| **GPIO 33** | IR Sensor 5 | `OUT` | Digital In | Rightmost line sensor |
+| **GPIO 1** | ESP32-CAM | `U0RXD` | UART TX0 | Inter-module serial link |
+| **GPIO 3** | ESP32-CAM | `U0TXD` | UART RX0 | Inter-module serial link |
+
+> 📖 **Full Details**: For bus specifications and pinout notes, see [Architecture Documentation](docs/architecture.md).
 
 ---
 
+## 🖥 PCB Design & Power Architecture
 
+| Schematic Capture | Copper Layer Routing (Top & Bottom) |
+|:---:|:---:|
+| [![Schematic Overview](docs/assets/images/schematic-overview.jpeg)](docs/pcb-design.md) | [![Front & Back Copper](docs/assets/images/pcb-front-copper.jpeg)](docs/pcb-design.md) |
 
-### Generating Gerbers
+### Power System Overview
+- **Logic Domain (5V / 3.3V)**: Two 18650 Li-ion cells in parallel (~3.7V nominal) charged via a TP4056 module (with auxiliary 6V solar charging), regulated to 5.0V through an LM2596 buck converter for the ESP32 and ESP32-CAM.
+- **Motor Domain (12V)**: An external 12V power source powers the TB6612FNG `VM` pin, keeping motor noise and current surges off the microcontroller supply rail.
 
-In KiCad PCB Editor: `File → Fabrication Outputs → Gerbers`
-
----
-
-## Team
-
-| Name | Role |
-|------|------|
-| — | PCB Design (KiCad) |
+> 📖 **Full Details**: For layer stackups, see [PCB Design](docs/pcb-design.md). For power tree analysis, see [Power System Documentation](docs/power-system.md).
 
 ---
 
-*Submitted for UNPLUGGED — A 24-Hour Hardware Hackathon | DJSCE × IETE-ISF × DJS MicroMinds VLSI Club*
+## 🔬 LTSpice Simulation (Bonus Challenge)
+
+As part of the hackathon's "Brownie Points" challenge, a **polarity-independent isolated flyback power supply** was designed and simulated in LTSpice.
+
+![LTSpice Simulation Waveform](simulation/assets/images/ltspice-flyback-output.jpeg)
+
+> [!NOTE]
+> **Source Disclosure**: The original hackathon repository included the simulation output waveform and schematic notes as an image (`ltspice-flyback-output.jpeg`). The standalone SPICE netlist files ([`polarity_protection_flyback.cir`](simulation/polarity_protection_flyback.cir) and [`polarity_protection_flyback.net`](simulation/polarity_protection_flyback.net)) were **reconstructed from the complete netlist text preserved in that original simulation output**, allowing the circuit to be opened and executed in standard SPICE simulators.
+
+### Circuit Features
+- **Wide Input Range ($\pm 12\text{V}$ to $\pm 50\text{V}$)**: Full-bridge Schottky rectifier guarantees positive internal voltage regardless of wire orientation.
+- **Galvanic Isolation**: $100\text{kHz}$ flyback transformer ($1:1.2$ turns ratio) provides electrical isolation between primary input and output.
+- **Regulated $+12.0\text{V}$ Output**: $12.7\text{V}$ Zener reference and NPN emitter follower deliver a regulated $12\text{V}$ output rail.
+- **Polarity Telemetry**: Hardware comparator outputs a $0\text{V}$ (Normal) or $5\text{V}$ (Reversed) logic signal to indicate input polarity.
+
+> 📖 **Full Details**: For stage-by-stage equations and netlists, see [Simulation Documentation](simulation/README.md).
+
+---
+
+## 📁 Repository Structure
+
+```
+Electabuzz_Unplugged/
+├── .gitignore                              # KiCad, LTSpice, CAD, and OS ignore rules
+├── README.md                               # Project showcase and overview
+│
+├── docs/                                  # Technical documentation
+│   ├── architecture.md                    # System block diagrams & pin assignments
+│   ├── hardware.md                        # Component specifications & mounting
+│   ├── pcb-design.md                      # KiCad layout, stackup & ERC/DRC details
+│   ├── power-system.md                    # Power tree & domain separation analysis
+│   ├── simulation.md                      # Simulation challenge summary
+│   ├── bom/                               # Manufacturing Bill of Materials
+│   │   ├── README.md                      # Verified component list
+│   │   ├── Bill_of_Materials.docx         # Original DOCX BOM
+│   │   └── BOM.pdf                        # Original PDF BOM
+│   └── assets/images/                     # Design screenshots and renders
+│
+├── hardware/
+│   ├── pcb/                               # KiCad 9.0 PCB project files
+│   │   ├── team_electrabuzz.kicad_pro     # Project master file
+│   │   ├── team_electrabuzz.kicad_sch     # System schematic
+│   │   └── team_electrabuzz.kicad_pcb     # PCB layout
+│   └── cad/models/                        # 3D mechanical STEP models
+│       ├── BK-18650-PC2--3DModel-STEP-269445.STEP
+│       ├── DM-OLED096-636--3DModel-STEP-56544.STEP
+│       └── MOTORJGB37-520.STEP
+│
+└── simulation/                            # SPICE simulation files
+    ├── README.md                          # Theoretical breakdown & circuit equations
+    ├── polarity_protection_flyback.cir   # Reconstructed SPICE netlist
+    ├── polarity_protection_flyback.net   # LTSpice netlist format
+    └── assets/images/                     # Simulation waveform plots
+```
+
+---
+
+## 🔍 Project Scope & Future Roadmap
+
+### Included in this Repository
+- Complete KiCad 9.0 schematic, PCB layout, and design rule check reports.
+- 3D STEP mechanical models for key onboard components.
+- Manufacturing Bill of Materials (BOM) in Markdown, PDF, and DOCX formats.
+- Reconstructed SPICE simulation netlists and theoretical documentation for the isolated power front-end.
+
+### Future Implementation Scope (Firmware & Software)
+- Microcontroller firmware for sensor reading and motor PWM generation.
+- Closed-loop line tracking algorithms (e.g., PID steering control).
+- Display driver routines for real-time status output on the OLED.
+- ESP32-CAM firmware integration for visual data capture.
+
+---
+
+## 🚀 Quickstart
+
+### Opening the PCB in KiCad
+1. Install [KiCad 9.0 or higher](https://kicad.org/download/).
+2. Clone this repository:
+   ```bash
+   git clone https://github.com/MayankBagad/Electabuzz_Unplugged.git
+   ```
+3. Open [`hardware/pcb/team_electrabuzz.kicad_pro`](hardware/pcb/team_electrabuzz.kicad_pro) in KiCad.
+
+### Running the SPICE Simulation
+1. Install [LTSpice](https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html) or [Ngspice](https://ngspice.sourceforge.io/).
+2. Open [`simulation/polarity_protection_flyback.cir`](simulation/polarity_protection_flyback.cir).
+3. Run transient analysis (`.tran 0 20m 0 1u uic`).
+
+---
+
+## 👥 Team & Acknowledgments
+
+- **Team Electrabuzz** — Hardware & PCB Design, Power Architecture
+- **Event**: *UNPLUGGED — 24-Hour Hardware Hackathon*
+- **Organizers**: DJSCE × IETE-ISF × DJS MicroMinds VLSI Club
+
+---
+
+## 📄 License Notice
+
+> [!NOTE]
+> An open-source license has not yet been selected for this repository. Recommended options:
+> - **Hardware Designs**: [CERN-OHL-P-2.0](https://ohwr.org/cern_ohl_p_v2.txt) (Permissive) or [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+> - **Software / Netlists**: [MIT License](https://opensource.org/licenses/MIT) or [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
